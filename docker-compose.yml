@@ -1,0 +1,72 @@
+version: "3.7"
+services:
+    # imagem micro e-mail
+    micro_mensageria:
+        build:
+            args:
+                user: admin
+                uid: 1000
+            context: ./
+            dockerfile: Dockerfile
+        image: laravel-app
+        restart: unless-stopped
+        working_dir: /var/www/
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - queue
+        networks:
+            - mensageria
+
+    # nginx
+    nginx:
+        image: nginx:alpine
+        restart: unless-stopped
+        ports:
+            - 8000:80
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx/:/etc/nginx/conf.d/
+        networks:
+            - mensageria
+
+    # mysql micro 01
+    db_mensageria:
+        image: mysql:5.7.22
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_USER: ${DB_USERNAME}
+        volumes:
+            - ./.docker/mysql/dbdata:/var/lib/mysql
+        ports:
+            - 3306:3306
+        networks:
+            - mensageria
+
+    # queue micro e-mail
+    queue:
+        build:
+            args:
+                user: carlos
+                uid: 1000
+            context: ./
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        command: "php artisan queue:work"
+        volumes:
+            - ./:/var/www
+        networks:
+            - mensageria
+
+    #redis
+    redis:
+        image: redis:latest
+        networks:
+            - mensageria
+
+networks:
+    mensageria:
+        driver: bridge
